@@ -6733,6 +6733,64 @@ def render_browser_logout_cleanup():
         height=0,
     )
 
+
+def require_login():
+    if not LOGIN_ENABLED:
+        return
+
+    if "is_authenticated" not in st.session_state:
+        st.session_state["is_authenticated"] = False
+    if "persist_login_now" not in st.session_state:
+        st.session_state["persist_login_now"] = False
+    if "logout_cleanup_pending" not in st.session_state:
+        st.session_state["logout_cleanup_pending"] = False
+
+    if st.session_state.get("logout_cleanup_pending"):
+        render_browser_logout_cleanup()
+        st.session_state["logout_cleanup_pending"] = False
+
+    if AUTO_LOGIN_TRUSTED_DEVICE:
+        render_browser_login_sync()
+
+    persistent_token = get_persistent_login_token()
+    auth_query_value = get_auth_query_value()
+
+    if auth_query_value and auth_query_value == persistent_token:
+        st.session_state["is_authenticated"] = True
+
+    if st.session_state.get("is_authenticated"):
+        if st.session_state.get("persist_login_now"):
+            render_browser_login_persist_now()
+            st.session_state["persist_login_now"] = False
+        return
+
+    st.markdown("## 🔐 Login")
+    st.caption("Bitte erst anmelden, bevor die Web-Version geladen wird.")
+
+    password = st.text_input("Passwort", type="password", key="login_password_input")
+    remember_device = st.checkbox("Auf diesem Gerät eingeloggt bleiben", value=True, key="login_remember_device")
+
+    c1, c2 = st.columns(2)
+    if c1.button("Einloggen", key="login_submit_btn", width="stretch"):
+        if str(password or "") == str(APP_LOGIN_PASSWORD or ""):
+            st.session_state["is_authenticated"] = True
+            if remember_device:
+                set_auth_query_value(persistent_token)
+                st.session_state["persist_login_now"] = True
+            st.success("Login erfolgreich.")
+            st.rerun()
+        else:
+            st.error("Passwort falsch.")
+
+    if c2.button("Zurücksetzen", key="login_reset_btn", width="stretch"):
+        st.session_state["is_authenticated"] = False
+        st.session_state["persist_login_now"] = False
+        st.session_state["logout_cleanup_pending"] = True
+        set_auth_query_value("")
+        st.rerun()
+
+    st.stop()
+
 def build_role_timing_insights(event=None, source=None, top_only=False, sub_event=None, limit_per_role=12):
     data = compute_data(event=event, source=source, top_only=top_only, sub_event=sub_event)
     role_buckets = {
@@ -7751,6 +7809,7 @@ def render_app_header():
     st.caption(f"Aktuelle Systemversion: {launcher_version} | aktualisiert am {APP_BUILD_DATE} {APP_BUILD_TIME} | Basis: {launcher_base}")
     st.caption(f"Core-Version: {APP_SHORT_VERSION}")
 
+require_login()
 init_db()
 render_app_header()
 
