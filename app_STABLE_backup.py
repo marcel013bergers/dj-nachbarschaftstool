@@ -7750,6 +7750,7 @@ def render_app_header():
     launcher_version = os.environ.get("DJ_TOOL_LAUNCHER_VERSION", "-")
     st.caption(f"Aktuelle Systemversion: {launcher_version} | aktualisiert am {APP_BUILD_DATE} {APP_BUILD_TIME} | Basis: {launcher_base}")
     st.caption(f"Core-Version: {APP_SHORT_VERSION}")
+
 init_db()
 render_app_header()
 
